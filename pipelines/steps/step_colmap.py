@@ -42,7 +42,7 @@ def build_colmap_commands(
         "--image_path", str(img_root),
         "--ImageReader.camera_model", args.camera_model,
         "--ImageReader.single_camera", "1",
-        "--SiftExtraction.max_image_size", "4000",
+        "--FeatureExtraction.max_image_size", "4000",
         "--FeatureExtraction.use_gpu", "1",
         "--FeatureExtraction.num_threads", str(num_threads),
     ]

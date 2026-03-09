@@ -33,7 +33,7 @@ def filter_datasets(datasets: List[Path], datasets_arg: str) -> List[Path]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Pipeline runner: frames -> preprocess -> colmap -> 2dGS -> texture")
     parser.add_argument("--video_dir", type=str, default="/home/lichengkai/RGB_Recon/input/test", help="输入视频文件夹路径")
-    parser.add_argument("--data_root", type=str, default="/home/lichengkai/RGB_Recon/output/test2_nousecolmapmask", help="输出数据根目录")
+    parser.add_argument("--data_root", type=str, default="/home/lichengkai/RGB_Recon/output/test2_colmapparametersoptimization", help="输出数据根目录")
     parser.add_argument("--gpus", type=str, default="0,1", help="使用的GPU编号，如'0,1'，auto为自动检测")
 
     parser.add_argument("--preprocess_python", type=str, default="/home/lichengkai/anaconda3/envs/preprocess/bin/python", help="预处理阶段Python解释器路径")
