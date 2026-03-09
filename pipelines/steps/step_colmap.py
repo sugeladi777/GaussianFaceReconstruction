@@ -35,66 +35,44 @@ def build_colmap_commands(
     sparse_root = data_root / "sparse"
     recon_root = sparse_root / "0"
 
+    # Use STFR-style defaults (fixed, not exposed): larger max image size, GPU on
     feat_cmd = [
         colmap_bin, "feature_extractor",
         "--database_path", str(database_root),
         "--image_path", str(img_root),
         "--ImageReader.camera_model", args.camera_model,
         "--ImageReader.single_camera", "1",
-        "--FeatureExtraction.max_image_size", str(args.max_image_size),
+        "--SiftExtraction.max_image_size", "4000",
         "--FeatureExtraction.use_gpu", "1",
         "--FeatureExtraction.num_threads", str(num_threads),
-        "--SiftExtraction.max_num_features", str(args.sift_max_num_features),
-        "--SiftExtraction.peak_threshold", str(args.sift_peak_threshold),
-        "--SiftExtraction.edge_threshold", str(args.sift_edge_threshold),
-        "--SiftExtraction.estimate_affine_shape", str(args.sift_estimate_affine_shape),
-        "--SiftExtraction.domain_size_pooling", str(args.sift_domain_size_pooling),
     ]
     if use_mask and mask_root.is_dir():
         feat_cmd += ["--ImageReader.mask_path", str(mask_root)]
 
-    if args.matcher == "sequential":
-        match_cmd = [
-            colmap_bin, "sequential_matcher",
-            "--database_path", str(database_root),
-            "--FeatureMatching.guided_matching", "1",
-            "--FeatureMatching.use_gpu", "1",
-            "--FeatureMatching.num_threads", str(num_threads),
-            "--SequentialMatching.overlap", str(args.sequential_overlap),
-            "--SequentialMatching.quadratic_overlap", "1",
-            "--SequentialMatching.loop_detection", str(args.sequential_loop_detection),
-        ]
-    else:
-        match_cmd = [
-            colmap_bin, "exhaustive_matcher",
-            "--database_path", str(database_root),
-            "--FeatureMatching.guided_matching", "1",
-            "--FeatureMatching.use_gpu", "1",
-            "--FeatureMatching.num_threads", str(num_threads),
-        ]
+    # STFR uses exhaustive matching by default (more robust for faces)
+    match_cmd = [
+        colmap_bin, "exhaustive_matcher",
+        "--database_path", str(database_root),
+        "--FeatureMatching.guided_matching", "1",
+        "--FeatureMatching.use_gpu", "1",
+        "--FeatureMatching.num_threads", str(num_threads),
+    ]
 
+    # Keep mapper invocation minimal as in STFR
     sfm_cmd = [
         colmap_bin, "mapper",
         "--database_path", str(database_root),
         "--image_path", str(img_root),
         "--output_path", str(sparse_root),
         "--Mapper.num_threads", str(num_threads),
-        "--Mapper.min_num_matches", str(args.mapper_min_num_matches),
-        "--Mapper.init_min_num_inliers", str(args.mapper_init_min_num_inliers),
-        "--Mapper.abs_pose_min_num_inliers", str(args.mapper_abs_pose_min_num_inliers),
-        "--Mapper.abs_pose_min_inlier_ratio", str(args.mapper_abs_pose_min_inlier_ratio),
-        "--Mapper.filter_max_reproj_error", str(args.mapper_filter_max_reproj_error),
-        "--Mapper.filter_min_tri_angle", str(args.mapper_filter_min_tri_angle),
-        "--Mapper.tri_ignore_two_view_tracks", str(args.mapper_tri_ignore_two_view_tracks),
-        "--Mapper.ba_refine_principal_point", str(args.mapper_ba_refine_principal_point),
     ]
 
+    # Use STFR BA settings
     ba_cmd = [
         colmap_bin, "bundle_adjuster",
         "--input_path", str(recon_root),
         "--output_path", str(recon_root),
-        "--BundleAdjustmentCeres.max_num_iterations", str(args.ba_max_num_iterations),
-        "--BundleAdjustment.refine_principal_point", str(args.mapper_ba_refine_principal_point),
+        "--BundleAdjustment.max_num_iterations", "100",
     ]
 
     to_txt_cmd = [
@@ -118,31 +96,11 @@ def build_parser():
     parser.add_argument("--repo-root", type=str, required=True)
     parser.add_argument("--python-exec", type=str, required=True)
     parser.add_argument("--data-root", type=str, required=True)
-    parser.add_argument("--use-mask", type=int, choices=[0, 1], default=0)
+    parser.add_argument("--use-mask", type=int, choices=[0, 1], default=1)
     parser.add_argument("--num-threads", type=int, default=0, help="COLMAP 使用的线程数；0 表示自动从 PIPELINE_WORKERS / PIPELINE_DATASET_WORKERS 计算")
     parser.add_argument("--colmap-bin", type=str, default="colmap")
 
     parser.add_argument("--camera-model", type=str, choices=["PINHOLE"], default="PINHOLE")
-    parser.add_argument("--max-image-size", type=int, default=3200)
-    parser.add_argument("--sift-max-num-features", type=int, default=8192)
-    parser.add_argument("--sift-peak-threshold", type=float, default=0.004)
-    parser.add_argument("--sift-edge-threshold", type=float, default=10.0)
-    parser.add_argument("--sift-estimate-affine-shape", type=int, choices=[0, 1], default=1)
-    parser.add_argument("--sift-domain-size-pooling", type=int, choices=[0, 1], default=1)
-
-    parser.add_argument("--matcher", type=str, choices=["sequential", "exhaustive"], default="sequential")
-    parser.add_argument("--sequential-overlap", type=int, default=30)
-    parser.add_argument("--sequential-loop-detection", type=int, choices=[0, 1], default=1)
-
-    parser.add_argument("--mapper-min-num-matches", type=int, default=20)
-    parser.add_argument("--mapper-init-min-num-inliers", type=int, default=60)
-    parser.add_argument("--mapper-abs-pose-min-num-inliers", type=int, default=30)
-    parser.add_argument("--mapper-abs-pose-min-inlier-ratio", type=float, default=0.20)
-    parser.add_argument("--mapper-filter-max-reproj-error", type=float, default=4.0)
-    parser.add_argument("--mapper-filter-min-tri-angle", type=float, default=1.0)
-    parser.add_argument("--mapper-tri-ignore-two-view-tracks", type=int, choices=[0, 1], default=0)
-    parser.add_argument("--mapper-ba-refine-principal-point", type=int, choices=[0, 1], default=0)
-    parser.add_argument("--ba-max-num-iterations", type=int, default=200)
     return parser
 
 
@@ -177,7 +135,7 @@ def main():
     print(
         "[step_colmap] config:",
         f"camera_model={args.camera_model}",
-        f"matcher={args.matcher}",
+        "matcher=exhaustive",
         f"use_mask={int(use_mask)}",
         f"threads={num_threads}",
     )

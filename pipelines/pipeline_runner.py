@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--remove_unmasked", type=int, choices=[0, 1], default=1, help="是否移除未被mask覆盖的区域，1为移除，0为保留")
 
     # colmap参数
-    parser.add_argument("--use_colmap_mask", type=int, choices=[0, 1], default=0, help="COLMAP是否使用mask，1为使用，0为不使用")
+    parser.add_argument("--use_colmap_mask", type=int, choices=[0, 1], default=1, help="COLMAP是否使用mask，1为使用，0为不使用")
     parser.add_argument("--mesh_res", type=int, default=1024, help="重建mesh的分辨率")
     parser.add_argument("--num_view", type=int, default=16, help="贴图渲染时的视角数量")
 
