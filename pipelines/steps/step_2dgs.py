@@ -18,70 +18,59 @@ def run_step(args, cwd):
 
 
 def pick_free_port() -> int:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
 def _iter_num(path: str) -> int:
     name = Path(path).name
-    try:
-        return int(name.split("_")[-1])
-    except Exception:
-        return -1
+    parts = name.rsplit("_", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        return int(parts[1])
+    return -1
 
 
 def find_latest_recon_dir(data_root: Path) -> Path:
     train_root = data_root / "recon" / "train"
-    ours_dirs = glob.glob(str(train_root / "ours_*"))
-    if not ours_dirs:
+    dirs = list(train_root.glob("ours_*"))
+    if not dirs:
         raise FileNotFoundError(f"No reconstruction folders found under: {train_root}")
-    return Path(sorted(ours_dirs, key=_iter_num)[-1])
-
-
-def pick_mesh_path(latest_recon_dir: Path) -> Path:
-    mesh_candidates = [
-        latest_recon_dir / "fuse_post.ply",
-        latest_recon_dir / "fuse.ply",
-        latest_recon_dir / "fuse_unbounded_post.ply",
-        latest_recon_dir / "fuse_unbounded.ply",
-    ]
-    for candidate in mesh_candidates:
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(f"No mesh found in latest reconstruction folder: {latest_recon_dir}")
+    return max(dirs, key=_iter_num)
 
 
 def export_main_component_mesh(mesh_path: Path, out_obj_path: Path) -> None:
     mesh = trimesh.load(mesh_path)
-    split_all = mesh.split(only_watertight=False)
-    mesh = sorted(split_all, key=lambda item: len(item.faces))[-1]
-    mesh.export(out_obj_path)
+    parts = mesh.split(only_watertight=False)
+    if parts:
+        main = max(parts, key=lambda item: len(getattr(item, "faces", [])))
+    else:
+        main = mesh
+    main.export(out_obj_path)
 
 
 def build_transforms(camera_list: List[Dict], image_root: Path) -> Dict:
+    if not camera_list:
+        raise ValueError("camera_list is empty")
+    first = camera_list[0]
     save_info = {
-        "fl_x": camera_list[0]["fx"],
-        "fl_y": camera_list[0]["fy"],
-        "w": camera_list[0]["width"],
-        "h": camera_list[0]["height"],
+        "fl_x": first["fx"],
+        "fl_y": first["fy"],
+        "w": first["width"],
+        "h": first["height"],
     }
     save_info["cx"] = save_info["w"] / 2
     save_info["cy"] = save_info["h"] / 2
 
     frames = []
-    for cam_info in camera_list:
-        transforms = np.eye(4)
-        transforms[:3, :3] = cam_info["rotation"]
-        transforms[:3, 3] = cam_info["position"]
-        frames.append(
-            {
-                "file_path": str(image_root / f"{cam_info['img_name']}.png"),
-                "transform_matrix": transforms.tolist(),
-            }
-        )
+    for cam in camera_list:
+        mat = np.eye(4)
+        mat[:3, :3] = np.asarray(cam["rotation"])
+        mat[:3, 3] = np.asarray(cam["position"])
+        frames.append({
+            "file_path": str(image_root / f"{cam['img_name']}.png"),
+            "transform_matrix": mat.tolist(),
+        })
 
     save_info["frames"] = frames
     return save_info
@@ -89,20 +78,19 @@ def build_transforms(camera_list: List[Dict], image_root: Path) -> Dict:
 
 def export_recon_assets(data_root: Path) -> None:
     latest_recon_dir = find_latest_recon_dir(data_root)
-    mesh_path = pick_mesh_path(latest_recon_dir)
+    mesh_path_pose = latest_recon_dir / "fuse_pose.ply"
+    mesh_path = mesh_path_pose if mesh_path_pose.exists() else (latest_recon_dir / "fuse.ply")
     export_main_component_mesh(mesh_path, data_root / "2dgs_recon.obj")
 
     cam_path = data_root / "recon" / "cameras.json"
-    with open(cam_path, "r") as file:
-        camera_list = json.load(file)
+    with cam_path.open("r") as f:
+        camera_list = json.load(f)
 
     image_root = data_root / "images"
-    if not image_root.is_dir():
-        raise FileNotFoundError(f"Image directory not found: {image_root}")
 
     save_info = build_transforms(camera_list, image_root)
-    with open(data_root / "transforms.json", "w") as file:
-        json.dump(save_info, file, indent=4)
+    with (data_root / "transforms.json").open("w") as f:
+        json.dump(save_info, f, indent=4)
 
 
 def build_parser():
@@ -118,16 +106,18 @@ def build_parser():
 def main():
     args = build_parser().parse_args()
     repo_root = Path(args.repo_root).resolve()
-    two_d_gs_root = repo_root / "2d-gaussian-splatting"
+    two_d_gs_root = repo_root / "pipelines" / "steps" / "2d-gaussian-splatting"
     data_root = Path(args.data_root).resolve()
 
     recon_root = data_root / "recon"
     train_port = args.port if args.port > 0 else pick_free_port()
 
+
+    train_py = two_d_gs_root / "train.py"
     run_step(
         [
             args.python_exec,
-            "train.py",
+            str(train_py),
             "-s",
             str(data_root),
             "-m",
@@ -138,10 +128,11 @@ def main():
         str(two_d_gs_root),
     )
 
+    render_py = two_d_gs_root / "render.py"
     run_step(
         [
             args.python_exec,
-            "render.py",
+            str(render_py),
             "-s",
             str(data_root),
             "-m",

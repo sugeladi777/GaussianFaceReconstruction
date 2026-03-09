@@ -1,8 +1,0 @@
-blender/*
-
-data/*
-workspace/*
-
-*.py[cod]
-.vscode/*
-*.sh

@@ -9,3 +9,50 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *$py.class
+# Jupyter Notebook 检查点
+.ipynb_checkpoints/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+ENV/
+
+# VSCode 配置
+.vscode/
+
+# Mac/Linux 系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Icon?
+.Spotlight-V100
+.Trashes
+
+# 日志和临时文件
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.swn
+
+# 数据和模型文件
+*.h5
+*.hdf5
+*.pth
+*.ckpt
+*.npz
+*.npy
+*.pkl
+*.onnx
+*.pb
+
+# 压缩包
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z

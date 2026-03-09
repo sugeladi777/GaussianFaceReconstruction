@@ -10,10 +10,13 @@ from network import VolumeTexture
 
 def parse_args():
     # 输入网格与训练好的纹理网络参数，输出带顶点颜色的 mesh。
+    import os
+    from pathlib import Path
+    script_dir = Path(__file__).resolve().parent.parent.parent  # 定位到RGB_Recon根目录
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mesh_path', type=str, default='data/hxl_indoor_dt_step-10/2dgs_recon.obj')
-    parser.add_argument('--save_path', type=str, default='data/hxl_indoor_dt_step-10/texture/textured_mesh.obj')
-    parser.add_argument('--ckpt_path', type=str, default='data/hxl_indoor_dt_step-10/texture/texture/latest.pth')
+    parser.add_argument('--mesh_path', type=str, default=str(script_dir / 'output/test/2dgs_recon.obj'))
+    parser.add_argument('--save_path', type=str, default=str(script_dir / 'output/test/texture/textured_mesh.obj'))
+    parser.add_argument('--ckpt_path', type=str, default=str(script_dir / 'output/test/texture/texture/latest.pth'))
     return parser.parse_args()
 
 

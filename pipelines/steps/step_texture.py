@@ -22,8 +22,21 @@ def build_parser():
 def main():
     args = build_parser().parse_args()
     repo_root = Path(args.repo_root).resolve()
-    texture_root = repo_root / "TexturePipeline"
+    texture_root = repo_root / "pipelines" / "steps" / "TexturePipeline"
     data_root = Path(args.data_root)
+
+    required_inputs = [
+        data_root / "images",
+        data_root / "2dgs_recon.obj",
+        data_root / "transforms.json",
+    ]
+    missing = [str(path) for path in required_inputs if not path.exists()]
+    if missing:
+        print(
+            f"[step_texture] skip dataset={data_root.name}: "
+            f"missing inputs: {', '.join(missing)}"
+        )
+        return
 
     cmd = [
         args.python_exec,
